@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="eecbc66e-b6dd-405f-be42-dc605332a7cf" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="69b245b9-1e90-4a02-b098-bb5d4ec8b293" >
+		<salesforce:basic-connection username="sahanamahesh2000@gmail.com" password="1at18@IS078SONU" securityToken="k0kYyaC8BuLa46oFHlCKBYE7" />
+	</salesforce:sfdc-config>
+	<flow name="mini-assgFlow" doc:id="1c86b80f-8813-4edc-9609-5a2e28bfc4a3" >
+		<http:listener doc:name="Listener" doc:id="f617c58f-75fa-42e6-a424-f6446b7e5875" config-ref="HTTP_Listener_config" path="/create"/>
+		<salesforce:create doc:name="Create" doc:id="87ddf623-d95a-41fc-bd5f-0b90e02959a4" config-ref="Salesforce_Config" type="EmployeeRecords__c"/>
+		<ee:transform doc:name="Transform Message" doc:id="78bc6d76-0dd4-4446-8ade-b0412d7c5d27" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mini-assgFlow1" doc:id="02f44669-cc7a-481d-b164-319237a81d59" >
+		<http:listener doc:name="Listener" doc:id="5d3f105c-8e20-499b-92dc-361a6d5b7acc" config-ref="HTTP_Listener_config" path="/update"/>
+		<salesforce:update type="EmployeeRecords__c" doc:name="Update" doc:id="2528c12d-b07e-4887-87c5-9f530c0c8544" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="3e757d5d-d301-4265-8f05-30ef15857c96" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mini-assgFlow2" doc:id="7f3d6a2d-a64e-4412-832a-00845b791f48" >
+		<http:listener doc:name="Listener" doc:id="c3501bb8-e329-4963-b433-3cea0e3a4e66" config-ref="HTTP_Listener_config" path="/delete"/>
+		<salesforce:delete doc:name="Delete" doc:id="35aa7a43-2e61-4474-a0d7-8ec5ab7663ee" config-ref="Salesforce_Config">
+			<salesforce:ids ><![CDATA[#[payload.id]]]></salesforce:ids>
+		</salesforce:delete>
+		<choice doc:name="Choice" doc:id="6a8b747d-af3d-42c8-9a93-c19f1711a951" >
+			<when expression="#[payload.successful == true]">
+				<ee:transform doc:name="Transform Message" doc:id="2f3e2f7b-c5d5-4f3b-8540-26e2439ff977">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<raise-error doc:name="Raise error" doc:id="b1838545-ed47-4ffa-965f-738b1a93de71" type="INVALID:ID" description="Unable to find ID for non existing records"/>
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="105407aa-816d-4bd4-8a6c-480858352899" type="INVALID:ID">
+				<ee:transform doc:name="Transform Message" doc:id="5f3a830d-982c-4bf4-899c-a74b0a3fea05" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="mini-assgFlow3" doc:id="bf37683c-7655-4e52-be14-3bb07761c137" >
+		<http:listener doc:name="Listener" doc:id="3d8ea7f7-3bbb-4935-9dc4-d88c2c9a40f5" config-ref="HTTP_Listener_config" path="/query"/>
+		<salesforce:query doc:name="Query" doc:id="9cb9de51-d5de-4280-947b-1262e221ad25" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[SELECT Id,Name,Fullname__c,PhnNumber__c from EmployeeRecords__c where Id=':id']]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[{
+	"id":payload.id
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="d526ffb4-bf6b-4e36-ae5a-42c3297cbada">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
